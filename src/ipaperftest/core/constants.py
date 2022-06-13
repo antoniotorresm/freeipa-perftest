@@ -54,7 +54,9 @@ phases:
   - playbook: init/testrunner-dir.yaml
 - name: provision
   steps:
-  - playbook: provision/mrack-up.yaml
+  - extra_vars:
+      lifetime: 96
+    playbook: provision/mrack-up.yaml
 - name: prep
   steps:
   - playbook: prep/redhat-base.yaml
@@ -305,6 +307,15 @@ ANSIBLE_APITEST_CLIENT_CONFIG_PLAYBOOK = """
   hosts: ipaclients
   become: yes
   tasks:
+    - synchronize:
+        src: "{{{{ item }}}}"
+        dest: "/root"
+        mode: push
+        use_ssh_args: yes
+      with_items:
+        - batch-user-add.py
+    - command:
+        cmd: "pip3 install click"
     - lineinfile:
         path: /etc/resolv.conf
         regexp: ".*"
@@ -321,6 +332,17 @@ ANSIBLE_APITEST_CLIENT_CONFIG_PLAYBOOK = """
         name: atd
         enabled: yes
         state: started
+"""
+
+ANSIBLE_APITEST_SERVER_CONFIG_PLAYBOOK = """
+---
+- name: Configure server before execution
+  hosts: ipaserver
+  become: yes
+  tasks:
+    - ipaconfig:
+        ipaadmin_password: password
+        ipaapi_ldap_cache: {enable_ldap_cache}
 """
 
 ANSIBLE_AUTHENTICATIONTEST_SERVER_CONFIG_PLAYBOOK = """

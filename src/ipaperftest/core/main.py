@@ -154,6 +154,11 @@ class RunTest:
     help="Run APITest commands sequentially from a single client.",
     is_flag=True
 )
+@click.option(
+    "--batch-size",
+    default=1,
+    help="Run APITest sequentially executing the commands in batches of this size."
+)
 @click.pass_context
 def main(
     ctx,
@@ -170,7 +175,8 @@ def main(
     results_format="json",
     results_output_file=None,
     custom_repo_url="",
-    provider="idmci"
+    provider="idmci",
+    batch_size=1,
 ):
 
     tests = RunTest(['ipaperftest.registry'])
