@@ -324,6 +324,40 @@ ANSIBLE_COUNT_IPA_HOSTS_PLAYBOOK = """
         cacheable: yes
 """
 
+ANSIBLE_APITEST_MAXGROUPSIZE_SERVER_CONFIG_PLAYBOOK = """
+---
+- name: Configure server for testing max group size
+  hosts: ipaserver
+  become: yes
+  tasks:
+    - synchronize:
+        src: "{{{{ item }}}}"
+        dest: "/root"
+        mode: push
+        use_ssh_args: yes
+      with_items:
+        - create-test-data.py
+    - package:
+        name: python3-pip
+    - command:
+        cmd: "pip3 install click"
+    - command:
+        cmd: "python3 create-test-data.py --hosts 1 --outfile userdata.ldif --users-per-host {amount}"
+        chdir: /root
+    - ipaconfig:
+        ipaadmin_password: password
+        enable_migration: yes
+    - command:
+        cmd: "ldapadd -x -D 'cn=Directory Manager' -w password -f userdata.ldif"
+        chdir: /root
+    - ipaconfig:
+        ipaadmin_password: password
+        enable_migration: no
+    - ipagroup:
+        ipaadmin_password: password
+        name: testgroup
+"""
+
 ANSIBLE_APITEST_CLIENT_CONFIG_PLAYBOOK = """
 ---
 - name: Configure client machines before installation

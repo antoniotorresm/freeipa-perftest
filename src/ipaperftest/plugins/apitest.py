@@ -6,11 +6,13 @@ import math
 import os
 import time
 import ansible_runner
+import subprocess as sp
 from datetime import datetime
 
 from ipaperftest.core.plugin import Plugin, Result
 from ipaperftest.core.constants import (
     ANSIBLE_APITEST_CLIENT_UPLOAD_SEQUENTIAL_SCRIPT_PLAYBOOK,
+    ANSIBLE_APITEST_MAXGROUPSIZE_SERVER_CONFIG_PLAYBOOK,
     SUCCESS,
     ERROR,
     ANSIBLE_APITEST_CLIENT_CONFIG_PLAYBOOK)
@@ -100,7 +102,8 @@ class APITest(Plugin):
     def run_sequentially(self, ctx):
         commands = []
         for i in range(ctx.params['amount']):
-            id_str = str(i).zfill(len(str(ctx.params['amount'])))
+            # create test data script doesn't pad id
+            id_str = str(i) #str(i).zfill(len(str(ctx.params['amount'])))
             formated_api_cmd = ctx.params["command"].format(id=id_str)
             cmd = (
                 r"echo {cmd} > ~/command{id}log;"
@@ -127,6 +130,15 @@ class APITest(Plugin):
         self.execution_time = end_time - start_time
 
     def run(self, ctx):
+        # TODO: this should be moved to a resources folder
+        sp.run(["cp", "set-password.py", "runner_metadata/"])
+        sp.run(["cp", "create-test-data.py", "runner_metadata/"])
+        args = {
+            "amount": ctx.params['amount']
+        }
+        self.run_ansible_playbook_from_template(ANSIBLE_APITEST_MAXGROUPSIZE_SERVER_CONFIG_PLAYBOOK,
+                                                "apitest_maxgroupsize_server_config", args, ctx)
+
         print("Deploying clients...")
 
         args = {
