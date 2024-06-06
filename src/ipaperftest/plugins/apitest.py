@@ -11,6 +11,7 @@ from datetime import datetime
 from ipaperftest.core.plugin import Plugin, Result
 from ipaperftest.core.constants import (
     ANSIBLE_APITEST_CLIENT_UPLOAD_SEQUENTIAL_SCRIPT_PLAYBOOK,
+    ANSIBLE_CERTISSUANCETEST_SERVER_TUNING_PLAYBOOK,
     SUCCESS,
     ERROR,
     ANSIBLE_APITEST_CLIENT_CONFIG_PLAYBOOK)
@@ -141,6 +142,15 @@ class APITest(Plugin):
         clients = [name for name, _ in self.provider.hosts.items() if name.startswith("client")]
         for client in clients:
             self.run_ssh_command("echo password | kinit admin", self.provider.hosts[client], ctx)
+
+        args = {
+            "wsgi_processes": ctx.params["wsgi_processes"],
+        }
+
+        self.run_ansible_playbook_from_template(
+            ANSIBLE_CERTISSUANCETEST_SERVER_TUNING_PLAYBOOK,
+            "certissuancetest_server_tuning", args, ctx
+        )
 
         if ctx.params["sequential"]:
             self.run_sequentially(ctx)
