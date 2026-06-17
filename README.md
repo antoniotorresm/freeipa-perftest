@@ -224,6 +224,51 @@ For client authentication test we need a lot of users to test against.
 The combination of two scripts will create the users needed for testing
 with identical, unexpired passwords.
 
+The `create-test-data.py` script generates LDIF data that can be imported directly
+into LDAP. It must be run on a FreeIPA server as it uses the IPA framework (`ipalib`)
+to determine the domain, base DN, and realm. The script creates:
+
+* **Users**: one set of users per host, with usernames in the format `user{N}{hostname}`
+  (e.g. `user0client000.example.com`). Each user is created with a pre-hashed password
+  (`password`), an SSH public key, and standard IPA attributes.
+* **An `allusers` group**: a group containing all generated users as members.
+* **Subgroups** (optional): when `--number-of-subgroups` is specified, users are
+  distributed evenly across subgroups which are then nested under `allusers`,
+  instead of adding all users directly to `allusers`.
+* **Services** (optional): when `--services` is specified, services are created
+  for each host, managed by that host.
+
+### Options
+
+```
+Usage: create-test-data.py [OPTIONS]
+
+Options:
+  --users-per-host INTEGER       Number of users to create for each host.
+                                 [default: 10]
+  --hosts INTEGER                Number of hosts to create.  [default: 500]
+  --host-prefix TEXT             Hostname prefix.  [default: client]
+  --services INTEGER             Number of services per host to create.
+                                 [default: 0]
+  --outfile TEXT                 LDIF output file. If not specified, output is
+                                 written to stdout.
+  --number-of-subgroups INTEGER  Number of subgroups to create. Users are
+                                 distributed evenly across subgroups, which
+                                 are all nested under the allusers group.
+                                 [default: 0]
+  --with-groups                  Create user groups.
+  --with-hostgroups              Create host groups.
+  --with-sudo                    Create sudo rules.
+  --with-hbac                    Create HBAC rules.
+  --debug                       Debug logging.
+  --help                         Show this message and exit.
+```
+
+The total number of users created is `users-per-host` * `hosts`. With the defaults
+(10 users per host, 500 hosts), this produces 5000 users.
+
+### Setup
+
 In order to set passwords using a pre-hashed password IPA needs to
 be in migration mode:
 
@@ -232,22 +277,37 @@ $ kinit admin
 $ ipa config-mod --enable-migration=true
 ```
 
-Create 10 users for each of 500 hosts. The format of the uid is
-user#client@.<domain>.
+### Sample usage
+
+Create 10 users for each of 500 hosts (defaults) and import them:
 
 ```
-$ ./create-test-data.py  > user.ldif
+$ ./create-test-data.py > user.ldif
 $ ldapadd -x -D 'cn=directory manager' -W < user.ldif
 ```
 
-Time to add depends on the server but for me it was ~9 minutes.
+Create 20 users for each of 100 hosts, with 5 services per host, writing to a file:
+
+```
+$ ./create-test-data.py --users-per-host 20 --hosts 100 --services 5 --outfile user.ldif
+$ ldapadd -x -D 'cn=directory manager' -W < user.ldif
+```
+
+Create users with 4 subgroups instead of a single flat group:
+
+```
+$ ./create-test-data.py --users-per-host 10 --hosts 500 --number-of-subgroups 4 > user.ldif
+$ ldapadd -x -D 'cn=directory manager' -W < user.ldif
+```
+
+Time to add depends on the server but for 5000 users it was ~9 minutes.
 
 Now reset all Kerberos credentials to the value of 'password':
 
 ```
-./set-password.py --dm-password <Directory Manager password>
+$ ./set-password.py --dm-password <Directory Manager password>
 ```
 
 Time to reset the passwords is ~11 minutes. This is done as the
 DM user requesting a keytab for each user which will set the
-Kerberos credentails. The LDAP password is set on the import.
+Kerberos credentials. The LDAP password is set on the import.
